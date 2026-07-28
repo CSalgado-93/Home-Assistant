@@ -23,23 +23,45 @@ HA -> Automation: Event: homeassistant_start
 Automation -> Template: Read sensor and evaluate variables
 Template --> Automation: Returns battery, window_a, on_threshold, off_threshold
 
-alt ON condition (battery >= on_threshold and switch == off)
-  Automation -> Switch: switch.turn_on()
-  Automation -> Notify: notify "Shelly Activated" (battery, on_threshold, window)
-else
-  alt OFF condition (battery <= off_threshold and switch == on)
-    Automation -> Switch: switch.turn_off()
-    Automation -> Notify: notify "Shelly Deactivated" (battery, off_threshold, window)
-  else
-    Automation --> HA: No action (conditions not met)
-  end
-end
-
-note right of Template
-  Threshold computation:\nwindow_a = now().hour >= 5 and now().hour < 8\non_threshold = 50 if window_a else 75\noff_threshold = 20 if window_a else 60
+note left
+  Thresholds:\n  A-window: ON=50 / OFF=20\n  B-window: ON=75 / OFF=60
 end note
 
-note over Automation,Switch,Notify: Side-effects: switch state changes and notifications
+alt window A or B (compute thresholds)
+  Automation -> Automation: compute window_a, on_threshold, off_threshold
+end
+
+alt battery >= on_threshold?
+  note right of Automation: battery >= on_threshold
+  Automation -> Automation: check switch state
+  alt switch == off
+    Automation -> Switch: switch.turn_on()
+    Automation -> Notify: notify "Shelly Activated" (battery, on_threshold, window)
+    Automation --> HA: End
+  else
+    Automation -> Automation: proceed to OFF checks
+  end
+else
+  note right of Automation: battery < on_threshold -> evaluate OFF branch
+end
+
+alt battery <= off_threshold?
+  note right of Automation: battery <= off_threshold
+  Automation -> Automation: check switch state
+  alt switch == on
+    Automation -> Switch: switch.turn_off()
+    Automation -> Notify: notify "Shelly Deactivated" (battery, off_threshold, window)
+    Automation --> HA: End
+  else
+    Automation --> HA: No action (keep state)
+  end
+else
+  Automation --> HA: No action (conditions not met)
+end
+
+note over Automation
+  Edge cases: missing sensor -> battery coerces to 0\nmode: single (no concurrent runs)
+end note
 
 @enduml
 ```
