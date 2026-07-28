@@ -4,42 +4,56 @@ This diagram visualizes the exact decision flow and actions executed by `shelly_
 
 View in VS Code with a Mermaid preview extension or paste the mermaid block into https://mermaid.live.
 
-```mermaid
-flowchart TB
-  %% Nodes
-  Start((Start))
-  Trigger[/Trigger: sensor change | time(05:00,08:00) | HA start/]
-  EvalVars[[Evaluate variables\n- battery = float(states('sensor.deye_battery') | default(0))\n- window_a = now().hour >=5 and now().hour <8\n- on_threshold = 50 if window_a else 75\n- off_threshold = 20 if window_a else 60]]
-  D1{battery >= on_threshold?}
-  D1b{switch.shelly1pm == 'off'?}
-  ActionOn[/Action: switch.turn_on\nNotify: "Shelly Activated"/]
-  D2{battery <= off_threshold?}
-  D2b{switch.shelly1pm == 'on'?}
-  ActionOff[/Action: switch.turn_off\nNotify: "Shelly Deactivated"/]
-  NoAction["No action — conditions not met"]
-  End((End))
+```plantuml
+@startuml
+|Automation|
+start
+:Trigger: sensor change / time (05:00, 08:00) / HA start;
+:
+:Evaluate variables\n- battery = float(states('sensor.deye_battery') or 0)\n- window_a = now().hour >= 5 and now().hour < 8\n- on_threshold = 50 if window_a else 75\n- off_threshold = 20 if window_a else 60;
 
-  %% Flow
-  Start --> Trigger --> EvalVars --> D1
-  D1 -- Yes --> D1b
-  D1b -- Yes --> ActionOn --> End
-  D1b -- No --> D2
-  D1 -- No --> D2
-  D2 -- Yes --> D2b
-  D2b -- Yes --> ActionOff --> End
-  D2b -- No --> NoAction --> End
-  D2 -- No --> NoAction --> End
+if (battery >= on_threshold?) then (yes)
+    if (switch.shelly1pm == 'off'?) then (yes)
+        :switch.turn_on();
+        :notify "Shelly Activated";
+        stop
+    else (no)
+        if (battery <= off_threshold?) then (yes)
+            if (switch.shelly1pm == 'on'?) then (yes)
+                :switch.turn_off();
+                :notify "Shelly Deactivated";
+                stop
+            else (no)
+                :No action — conditions not met;
+                stop
+            endif
+        else (no)
+            :No action — conditions not met;
+            stop
+        endif
+    endif
+else (no)
+    if (battery <= off_threshold?) then (yes)
+        if (switch.shelly1pm == 'on'?) then (yes)
+            :switch.turn_off();
+            :notify "Shelly Deactivated";
+            stop
+        else (no)
+            :No action — conditions not met;
+            stop
+        endif
+    else (no)
+        :No action — conditions not met;
+        stop
+    endif
+endif
 
-  %% Notes / edge cases
-  classDef note fill:#f9f,stroke:#333,stroke-width:1px;
-  BatteryNote["Note: If sensor missing or non-numeric, battery coerces to 0"]
-  ModeNote["Automation mode: single — concurrent runs prevented"]
-  BatteryNote:::note
-  ModeNote:::note
-  EvalVars --> BatteryNote
-  Trigger --> ModeNote
+note right
+    Note: If sensor missing or non-numeric, battery coerces to 0\nAutomation mode: single — concurrent runs prevented
+end note
 
-``` 
+@enduml
+```
 
 ## Pseudocode (equivalent)
 

@@ -4,44 +4,44 @@ This file contains a Mermaid sequence diagram and an expanded, step-by-step sequ
 
 Open this file in a Markdown viewer that supports Mermaid (VS Code + Mermaid Preview, GitHub PRs, or mermaid.live).
 
-```mermaid
-sequenceDiagram
-  participant Sensor as sensor.deye_battery
-  participant Timer as TimeTrigger
-  participant HA as HomeAssistant
-  participant Automation as Automation
-  participant Template as TemplateEngine
-  participant Switch as switch.shelly1pm
-  participant Notify as notify.notify
+```plantuml
+@startuml
+participant Sensor as "sensor.deye_battery"
+participant Timer as "TimeTrigger"
+participant HA as "HomeAssistant"
+participant Automation as "Automation"
+participant Template as "TemplateEngine"
+participant Switch as "switch.shelly1pm"
+participant Notify as "notify.notify"
 
-  Note over Sensor,Timer: Triggers — sensor state change, scheduled times
-  Sensor->>Automation: Trigger (battery state changed)
-  Timer->>Automation: Trigger (05:00 or 08:00)
-  Note over HA,Automation: HA start event triggers evaluation
-  HA->>Automation: Event: homeassistant_start
+note over Sensor,Timer: Triggers — sensor state change, scheduled times
+Sensor -> Automation: Trigger (battery state changed)
+Timer -> Automation: Trigger (05:00 or 08:00)
+note over HA,Automation: HA start event triggers evaluation
+HA -> Automation: Event: homeassistant_start
 
-  Automation->>Template: Read sensor and evaluate variables
-  Template-->>Automation: Returns battery, window_a, on_threshold, off_threshold
+Automation -> Template: Read sensor and evaluate variables
+Template --> Automation: Returns battery, window_a, on_threshold, off_threshold
 
-  alt ON condition (battery >= on_threshold and switch == off)
-    Automation->>Switch: service: switch.turn_on
-    Automation->>Notify: notify "Shelly Activated" (battery, on_threshold, window)
+alt ON condition (battery >= on_threshold and switch == off)
+  Automation -> Switch: switch.turn_on()
+  Automation -> Notify: notify "Shelly Activated" (battery, on_threshold, window)
+else
+  alt OFF condition (battery <= off_threshold and switch == on)
+    Automation -> Switch: switch.turn_off()
+    Automation -> Notify: notify "Shelly Deactivated" (battery, off_threshold, window)
   else
-    alt OFF condition (battery <= off_threshold and switch == on)
-      Automation->>Switch: service: switch.turn_off
-      Automation->>Notify: notify "Shelly Deactivated" (battery, off_threshold, window)
-    else
-      Automation-->>HA: No action (conditions not met)
-    end
+    Automation --> HA: No action (conditions not met)
   end
+end
 
-  Note right of Template: Threshold computation
-  Note right of Template: `window_a = now().hour >= 5 and now().hour < 8`
-  Note right of Template: `on_threshold = 50 if window_a else 75`
-  Note right of Template: `off_threshold = 20 if window_a else 60`
+note right of Template
+  Threshold computation:\nwindow_a = now().hour >= 5 and now().hour < 8\non_threshold = 50 if window_a else 75\noff_threshold = 20 if window_a else 60
+end note
 
-  Note over Automation,Switch,Notify: Side-effects: switch state changes and notifications
+note over Automation,Switch,Notify: Side-effects: switch state changes and notifications
 
+@enduml
 ```
 
 ## Full step-by-step runtime sequence
