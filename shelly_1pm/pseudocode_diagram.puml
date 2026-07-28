@@ -1,0 +1,48 @@
+@startuml
+|Automation|
+start
+:Trigger: sensor change / time (05:00, 08:00) / HA start;
+:
+:Evaluate variables\n- battery = float(states('sensor.deye_battery') or 0)\n- window_a = now().hour >= 5 and now().hour < 8\n- on_threshold = 50 if window_a else 75\n- off_threshold = 20 if window_a else 60;
+
+if (battery >= on_threshold?) then (yes)
+    if (switch.shelly1pm == 'off'?) then (yes)
+        :switch.turn_on();
+        :notify "Shelly Activated";
+        stop
+    else (no)
+        if (battery <= off_threshold?) then (yes)
+            if (switch.shelly1pm == 'on'?) then (yes)
+                :switch.turn_off();
+                :notify "Shelly Deactivated";
+                stop
+            else (no)
+                :No action — conditions not met;
+                stop
+            endif
+        else (no)
+            :No action — conditions not met;
+            stop
+        endif
+    endif
+else (no)
+    if (battery <= off_threshold?) then (yes)
+        if (switch.shelly1pm == 'on'?) then (yes)
+            :switch.turn_off();
+            :notify "Shelly Deactivated";
+            stop
+        else (no)
+            :No action — conditions not met;
+            stop
+        endif
+    else (no)
+        :No action — conditions not met;
+        stop
+    endif
+endif
+
+note right
+    Note: If sensor missing or non-numeric, battery coerces to 0\nAutomation mode: single — concurrent runs prevented
+end note
+
+@enduml
