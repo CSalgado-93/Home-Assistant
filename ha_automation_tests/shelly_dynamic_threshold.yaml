@@ -1,0 +1,57 @@
+alias: Shelly1PM Dynamic Threshold Control
+description: Control Shelly according to battery SoC and time window
+triggers:
+  - entity_id: sensor.deye_battery
+    trigger: state
+  - at: "05:00:00"
+    trigger: time
+  - at: "08:00:00"
+    trigger: time
+  - event: start
+    trigger: homeassistant
+actions:
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: |
+              {{ battery >= on_threshold }}
+          - condition: state
+            entity_id: switch.shelly1pm
+            state: "off"
+        sequence:
+          - target:
+              entity_id: switch.shelly1pm
+            action: switch.turn_on
+          - data:
+              title: ⚡ Shelly Activated
+              message: >
+                Battery: {{ battery }}%. Threshold: {{ on_threshold }}%. Time
+                Window: {{ 'A' if window_a else 'B' }}. Shelly turned ON.
+            action: notify.notify
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: |
+              {{ battery <= off_threshold }}
+          - condition: state
+            entity_id: switch.shelly1pm
+            state: "on"
+        sequence:
+          - target:
+              entity_id: switch.shelly1pm
+            action: switch.turn_off
+          - data:
+              title: 🔌 Shelly Deactivated
+              message: >
+                Battery: {{ battery }}%. Threshold: {{ off_threshold }}%. Time
+                Window: {{ 'A' if window_a else 'B' }}. Shelly turned OFF.
+            action: notify.notify
+variables:
+  battery: "{{ states('sensor.deye_battery') | float(0) }}"
+  window_a: |
+    {{ now().hour >= 5 and now().hour < 8 }}
+  on_threshold: |
+    {{ 50 if window_a else 75 }}
+  off_threshold: |
+    {{ 20 if window_a else 60 }}
+mode: single
